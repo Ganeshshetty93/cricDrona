@@ -1,0 +1,7 @@
+// Original prototype fixtures. These are never written to a connected database.
+export const demoEvents = [
+  { id: '11111111-1111-4111-8111-111111111111', title: 'Weekend Warriors Cup', type: 'Match', ball: 'Tennis ball', age: 'Open', date: '2026-11-01', time: '07:00', place: 'Drona Cricket Ground', fee: 499, seats: 24, description: 'A friendly tennis-ball tournament. Bring your team spirit and enjoy a full morning of cricket.' },
+  { id: '22222222-2222-4222-8222-222222222222', title: 'Junior Champions Academy', type: 'Class', ball: 'Hard ball', age: 'Under 14', date: '2026-11-03', time: '16:00', place: 'Drona Training Nets', fee: 2499, seats: 16, description: 'Build batting, bowling and fielding fundamentals with structured junior coaching.' },
+  { id: '33333333-3333-4333-8333-333333333333', title: 'Leather Ball Premier League', type: 'Match', ball: 'Hard ball', age: 'Under 19', date: '2026-11-08', time: '08:00', place: 'Drona Cricket Ground', fee: 799, seats: 32, description: 'Put your hard-ball skills to the test in a competitive match for developing players.' },
+  { id: '44444444-4444-4444-8444-444444444444', title: 'Tennis Ball Fundamentals', type: 'Class', ball: 'Tennis ball', age: 'Under 16', date: '2026-11-05', time: '17:00', place: 'Drona Training Nets', fee: 1499, seats: 20, description: 'Get comfortable at the crease with approachable drills, small-sided games and friendly guidance.' },
+].map(event => ({ ...event, status: 'published', registered_count: 0 }));
