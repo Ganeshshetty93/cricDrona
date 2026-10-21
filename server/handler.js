@@ -56,7 +56,7 @@ function defaultClientFactory({ url, key, token }) {
 }
 async function readBody(req) {
   const contentType = req.headers['content-type'] || '';
-  if (!contentType.toLowerCase().startsWith('application/json')) throw new HttpError(415, 'Use application/json for request bodies.');
+  if (contentType.split(';', 1)[0].trim().toLowerCase() !== 'application/json') throw new HttpError(415, 'Use application/json for request bodies.');
   if (Number(req.headers['content-length']) > 16384) throw new HttpError(413, 'Request body is too large.');
   let body = req.body;
   if (body === undefined) {
@@ -98,10 +98,10 @@ export function createHandler({ env = process.env, clientFactory = defaultClient
         throw new HttpError(503, 'Connect Supabase to use accounts, registrations and academy management.');
       }
       if (segments[0] === 'events' && segments.length <= 2 && method === 'GET') {
-        if (segments[1]) uuid(segments[1], 'event ID');
+        const eventId = segments[1] ? uuid(segments[1], 'event ID') : null;
         const db = clientFactory(settings);
         const events = checked(await db.rpc('list_events', { p_include_drafts: false })) || [];
-        const data = segments[1] ? events.find(event => event.id === segments[1]) : events;
+        const data = eventId ? events.find(event => event.id === eventId) : events;
         if (!data) throw new HttpError(404, 'Event not found.');
         return send(200, { data });
       }

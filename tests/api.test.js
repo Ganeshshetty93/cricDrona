@@ -72,6 +72,14 @@ test('invalid public event ID is rejected and missing published event returns 40
   assert.equal((await request(`/events/${EVENT}`)).status, 404);
 });
 
+test('public event lookup accepts uppercase UUIDs and returns the canonical event', async () => {
+  const eventId = 'abcdefab-abcd-4abc-8abc-abcdefabcdef';
+  const db = database({ rpcResults: { list_events: { data: [{ id: eventId, title: 'Evening cricket' }], error: null } } });
+  const result = await request(`/events/${eventId.toUpperCase()}`, { db });
+  assert.equal(result.status, 200);
+  assert.equal(result.body.data.id, eventId);
+});
+
 test('protected endpoints reject missing and invalid sessions before private data access', async () => {
   const missing = await request('/profile');
   assert.equal(missing.status, 401);
@@ -191,6 +199,17 @@ test('malformed, oversized or non-JSON request bodies are rejected', async () =>
   assert.equal((await request('/profile', { token: 'valid', method: 'PATCH', body: '{invalid' })).status, 400);
   assert.equal((await request('/profile', { token: 'valid', method: 'PATCH', body: { name: 'A'.repeat(17000) } })).status, 413);
   assert.equal((await request('/profile', { token: 'valid', method: 'PATCH', body: { name: 'Arjun' }, headers: { 'content-type': 'text/plain' } })).status, 415);
+});
+
+test('JSON media-type parameters are accepted but prefix lookalikes cannot trigger writes', async () => {
+  const options = { token: 'valid', method: 'PATCH', body: { name: 'Arjun' } };
+  assert.equal((await request('/profile', { ...options, headers: { 'content-type': 'Application/JSON; charset=utf-8' } })).status, 200);
+  for (const contentType of ['application/jsonp', 'application/json-patch+json']) {
+    const db = database();
+    const result = await request('/profile', { ...options, db, headers: { 'content-type': contentType } });
+    assert.equal(result.status, 415);
+    assert.ok(!db.calls.some(call => call[1] === 'update'));
+  }
 });
 
 test('unexpected errors are redacted and account responses disable caching', async () => {

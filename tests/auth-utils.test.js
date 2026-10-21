@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import { safeNext, validSupabaseConfiguration } from '../src/lib/auth-utils.js';
 
 test('login return destinations preserve local application routes', () => {
-  for (const value of ['/', '/dashboard', '/events/123?intent=register', '/profile#preferences', '/admin/events', '/registrations']) {
+  for (const value of ['/', '/dashboard', '/events/123?intent=register', '/profile#preferences', '/admin/events', '/registrations', '/contact', '/contact?topic=coaching#enquiry']) {
     assert.equal(safeNext(value), value);
   }
 });
 
 test('login return destinations reject external, malformed, and unknown routes', () => {
-  for (const value of [null, '', '//evil.example', 'https://evil.example', '/\\evil.example', '/\tevil.example', '/events/../../login', '/events/%5cevil', '/%2fevil.example', '/events/%0aevil', '/events/%', '/login', '/forgot-password', 'javascript:alert(1)']) {
+  for (const value of [null, '', '//evil.example', 'https://evil.example', '/\\evil.example', '/\tevil.example', '/events/../../login', '/events/%5cevil', '/%2fevil.example', '/events/%0aevil', '/events/%', '/login', '/forgot-password', '/contact/../login', '/contact//evil.example', 'javascript:alert(1)']) {
     assert.equal(safeNext(value), '/dashboard', String(value));
   }
 });

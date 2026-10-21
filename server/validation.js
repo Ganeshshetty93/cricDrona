@@ -6,7 +6,7 @@ export const AGES = ['Under 10', 'Under 12', 'Under 14', 'Under 16', 'Under 19',
 export const BALLS = ['Tennis ball', 'Hard ball'];
 export function uuid(value, label = 'ID') {
   if (typeof value !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) throw new HttpError(400, `Invalid ${label}.`);
-  return value;
+  return value.toLowerCase();
 }
 function text(value, label, min = 1, max = 200) {
   if (typeof value !== 'string' || value.trim().length < min || value.trim().length > max) throw new HttpError(400, `${label} must contain ${min}–${max} characters.`);

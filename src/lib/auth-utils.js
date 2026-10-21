@@ -5,7 +5,7 @@ export function safeNext(value, fallback = '/dashboard') {
     const resolved = new URL(value, 'https://cricdrona.local');
     const decodedPath = decodeURIComponent(resolved.pathname);
     if (resolved.origin !== 'https://cricdrona.local' || /[\\\u0000-\u001f\u007f]/.test(decodedPath) || decodedPath.startsWith('//')) return fallback;
-    if (decodedPath === '/' || /^\/(dashboard|events|profile|registrations|admin|coach|owner)(\/|$)/.test(decodedPath)) {
+    if (decodedPath === '/' || /^\/contact\/?$/.test(decodedPath) || /^\/(dashboard|events|profile|registrations|admin|coach|owner)(\/|$)/.test(decodedPath)) {
       return `${resolved.pathname}${resolved.search}${resolved.hash}`;
     }
   } catch { /* Malformed URL escape sequences are never return destinations. */ }
