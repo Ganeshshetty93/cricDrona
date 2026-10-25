@@ -29,9 +29,9 @@ function database({ role = 'player', authError = false, rpcResults = {}, tables 
     },
   };
 }
-async function request(path, { method = 'GET', body, token, env = ENV, db = database(), headers = {} } = {}) {
+async function request(path, { method = 'GET', body, token, env = ENV, db = database(), headers = {}, teamClientFactory } = {}) {
   const usedSettings = [];
-  const handler = createHandler({ env, clientFactory: settings => { usedSettings.push(settings); return db; } });
+  const handler = createHandler({ env, clientFactory: settings => { usedSettings.push(settings); return db; }, teamClientFactory });
   const req = { url: `/api${path}`, method, body, headers: { ...(body !== undefined && { 'content-type': 'application/json' }), ...(token && { authorization: `Bearer ${token}` }), ...headers } };
   const response = { headers: {}, setHeader(name, value) { this.headers[name] = value; }, end(text) { this.json = JSON.parse(text); } };
   await handler(req, response);
@@ -115,14 +115,51 @@ test('coach can read assigned batches but cannot read team/messages or change ev
   }
 });
 
-test('owner alone can assign an existing account role; owner role cannot be granted', async () => {
+test('admins and owners can assign a role through the isolated server helper', async () => {
   const payload = { email: 'Coach@Example.com', role: 'coach' };
-  assert.equal((await request('/admin/team', { token: 'valid', method: 'POST', body: payload, db: database({ role: 'admin' }) })).status, 403);
-  const db = database({ role: 'owner', rpcResults: { set_user_role: { data: { id: USER, role: 'coach' }, error: null } } });
-  const result = await request('/admin/team', { token: 'valid', method: 'POST', body: payload, db });
-  assert.equal(result.status, 200);
-  assert.ok(result.calls.some(call => call[1] === 'set_user_role' && call[2].p_email === 'coach@example.com'));
-  assert.equal((await request('/admin/team', { token: 'valid', method: 'POST', body: { ...payload, role: 'owner' }, db: database({ role: 'owner' }) })).status, 400);
+  for (const role of ['admin','owner']) {
+    const db = database({ role });
+    const env = { ...ENV, SUPABASE_SECRET_KEY: 'sb_secret_test' };
+    let privilegedSettings;
+    const responses = [{role},[{id:REG,email:'coach@example.com'}],{role:'player'},{role},{user_id:REG,role:'coach'}];
+    const privileged = { from() {
+      const chain = {};
+      for (const name of ['select','eq','neq','limit','update','maybeSingle']) chain[name] = () => chain;
+      chain.then = resolve => resolve({data:responses.shift(),error:null});
+      return chain;
+    } };
+    const result = await request('/admin/team', { token:'valid',method:'POST',body:payload,db,env,teamClientFactory:settings=>{privilegedSettings=settings;return privileged;} });
+    assert.equal(result.status,200);
+    assert.deepEqual(result.body.data,{id:REG,email:'coach@example.com',role:'coach'});
+    assert.deepEqual(privilegedSettings,{url:ENV.SUPABASE_URL,secret:'sb_secret_test'});
+    assert.equal(result.settings[0].key,ENV.SUPABASE_ANON_KEY);
+    assert.equal(result.settings[0].token,'valid');
+    assert.ok(!result.calls.some(call=>call[1]==='set_user_role'));
+  }
+});
+
+test('role endpoint rejects unauthorized sessions and invalid payloads before creating a secret client', async () => {
+  let calls=0;
+  const teamClientFactory=()=>{calls++;throw new Error('must not run');};
+  for (const [token,db,status] of [[undefined,database({role:'admin'}),401],['bad',database({authError:true}),401],['valid',database({role:'player'}),403],['valid',database({role:'coach'}),403]]) {
+    const result=await request('/admin/team',{token,db,method:'POST',body:{email:'x@example.com',role:'admin'},teamClientFactory});
+    assert.equal(result.status,status);
+  }
+  for(const body of [{email:'x@example.com',role:'owner'},{email:'x@example.com',role:'admin',user_id:USER}]) {
+    assert.equal((await request('/admin/team',{token:'valid',db:database({role:'admin'}),method:'POST',body,teamClientFactory})).status,400);
+  }
+  assert.equal(calls,0);
+});
+
+test('missing backend secret fails only role editing and ordinary requests remain under user RLS', async () => {
+  const result=await request('/admin/team',{token:'valid',method:'POST',body:{email:'x@example.com',role:'admin'},db:database({role:'admin'})});
+  assert.equal(result.status,503);
+  let created=0;
+  const regular=await request('/profile',{token:'valid',env:{...ENV,SUPABASE_SECRET_KEY:'sb_secret_test'},db:database({role:'admin'}),teamClientFactory:()=>{created++;}});
+  assert.equal(regular.status,200);
+  assert.equal(regular.settings[0].key,ENV.SUPABASE_ANON_KEY);
+  assert.equal(regular.settings[0].token,'valid');
+  assert.equal(created,0);
 });
 
 test('registration requires explicit consent and never accepts a user ID from the browser', async () => {

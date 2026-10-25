@@ -5,11 +5,52 @@ export function safeNext(value, fallback = '/dashboard') {
     const resolved = new URL(value, 'https://cricdrona.local');
     const decodedPath = decodeURIComponent(resolved.pathname);
     if (resolved.origin !== 'https://cricdrona.local' || /[\\\u0000-\u001f\u007f]/.test(decodedPath) || decodedPath.startsWith('//')) return fallback;
-    if (decodedPath === '/' || /^\/(dashboard|events|profile|registrations|admin|coach|owner)(\/|$)/.test(decodedPath)) {
+    if (decodedPath === '/' || /^\/contact\/?$/.test(decodedPath) || /^\/(dashboard|events|profile|registrations|admin|coach|owner)(\/|$)/.test(decodedPath)) {
       return `${resolved.pathname}${resolved.search}${resolved.hash}`;
     }
   } catch { /* Malformed URL escape sequences are never return destinations. */ }
   return fallback;
+}
+
+// The caller supplies the role from the authenticated profile API, never signup metadata.
+export function authLandingPath(next, role) {
+  const workspace = ['owner', 'admin', 'coach'].includes(role) ? '/admin' : '/dashboard';
+  return safeNext(next, workspace);
+}
+
+export function normalizeAccountKey(value) {
+  const raw = String(value ?? '').trim().toLowerCase();
+  if (!raw) return '';
+
+  if (raw.includes('@')) {
+    const [left, ...right] = raw.split('@');
+    const domain = right.join('@');
+    if (!left || !domain) return '';
+
+    const validEmailPattern = /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9.!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9-]+\.)+[a-z]{2,}$/i;
+    if (domain === 'cricdrona.local') {
+      const local = left.replace(/[^a-z0-9._+-]+/g, '').replace(/\.+/g, '.').replace(/^\.+|\.+$/g, '');
+      return local ? `${local}@cricdrona.local` : '';
+    }
+    if (validEmailPattern.test(raw)) return raw;
+
+    const local = left.replace(/[^a-z0-9._+-]+/g, '').replace(/\.+/g, '.').replace(/^\.+|\.+$/g, '');
+    return local ? `${local}@cricdrona.local` : '';
+  }
+
+  const candidate = raw
+    .replace(/[^a-z0-9._+-]+/g, '.')
+    .replace(/\.+/g, '.')
+    .replace(/^\.+|\.+$/g, '');
+
+  if (!candidate) return '';
+
+  const segments = candidate.split('.');
+  const looksLikeDomainSuffix = segments.length >= 3 && /^(com|in|co|org|net|io|app|dev|me|ai|edu|gov|info|biz|shop|online)$/i.test(segments.at(-1)) && segments.at(-2).length >= 2;
+  const normalizedBase = looksLikeDomainSuffix ? segments.slice(0, -2).join('.') : candidate;
+  const finalLocal = normalizedBase || candidate;
+
+  return finalLocal.includes('@') ? finalLocal : `${finalLocal}@cricdrona.local`;
 }
 
 export function validSupabaseConfiguration(url, publicKey) {

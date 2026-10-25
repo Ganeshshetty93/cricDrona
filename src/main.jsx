@@ -5,4 +5,6 @@ import { AuthProvider } from './context/AuthContext';
 import App from './App';
 import './prototype.css';
 import './styles.css';
+import './dashboard-refinements.css';
+import './workspace.css';
 createRoot(document.getElementById('root')).render(<React.StrictMode><BrowserRouter><AuthProvider><App /></AuthProvider></BrowserRouter></React.StrictMode>);
