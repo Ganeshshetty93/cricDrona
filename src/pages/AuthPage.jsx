@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { authLandingPath, normalizeAccountKey } from '../lib/auth-utils';
 import { authRedirectInfo, safeNext, supabase } from '../lib/supabase';
 
 const content = {
@@ -18,7 +19,9 @@ export default function AuthPage({ mode = 'login' }) {
   const auth = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const next = safeNext(params.get('next'));
+  const requestedNext = safeNext(params.get('next'), '');
+  const next = authLandingPath(requestedNext, auth.profile?.role);
+  const nextQuery = requestedNext ? `?next=${encodeURIComponent(requestedNext)}` : '';
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -49,7 +52,8 @@ export default function AuthPage({ mode = 'login' }) {
     setError('');
     setSuccess('');
     const fields = new FormData(event.currentTarget);
-    const email = String(fields.get('email') || '').trim();
+    const rawIdentifier = String(fields.get('email') || '').trim();
+    const email = mode === 'login' ? normalizeAccountKey(rawIdentifier) : rawIdentifier.toLowerCase();
     const password = String(fields.get('password') || '');
     try {
       if (['register', 'reset'].includes(mode)) {
@@ -57,23 +61,44 @@ export default function AuthPage({ mode = 'login' }) {
         if (password !== fields.get('confirmPassword')) throw new Error('Your passwords do not match.');
       }
       if (mode === 'login') {
-        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-        if (signInError) throw signInError;
-        navigate(next, { replace: true });
+        if (!rawIdentifier) throw new Error('Enter your email address or existing username.');
+        const attempts = [...new Set([
+          rawIdentifier.toLowerCase(),
+          normalizeAccountKey(rawIdentifier),
+        ].filter(Boolean))];
+        let lastError = null;
+        for (const candidate of attempts) {
+          const { error: signInError } = await supabase.auth.signInWithPassword({ email: candidate, password });
+          if (!signInError) {
+            // AuthProvider loads the server-backed role before the redirect effect runs.
+            return;
+          }
+          if (signInError.code === 'email_not_confirmed') {
+            throw signInError;
+          }
+          lastError = signInError;
+        }
+        if (lastError) throw lastError;
       } else if (mode === 'register') {
         const name = String(fields.get('name') || '').trim();
+        const phone = String(fields.get('phone') || '').trim();
         if (name.length < 2) throw new Error('Enter your full name (at least 2 characters).');
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.endsWith('@cricdrona.local')) throw new Error('Use a real email address for your CricDrona account.');
         const { data, error: signupError } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            data: { full_name: name, name },
-            emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+            data: { full_name: name, name, phone },
           },
         });
         if (signupError) throw signupError;
-        if (data.session) navigate(next, { replace: true });
-        else setSuccess('Check your inbox for a confirmation link. Confirm your email to finish creating your account. If you already have an account, sign in instead.');
+        if (data.session) {
+          navigate(next, { replace: true });
+          return;
+        }
+        const autoSignIn = await supabase.auth.signInWithPassword({ email, password });
+        if (autoSignIn.error) throw autoSignIn.error;
+        navigate(next, { replace: true });
       } else if (mode === 'forgot') {
         const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/reset-password`,
@@ -94,7 +119,15 @@ export default function AuthPage({ mode = 'login' }) {
         }
       }
     } catch (submitError) {
-      setError(submitError.message || 'Something went wrong. Please try again.');
+      const code = submitError.code;
+      const message = submitError.message || '';
+      setError(code === 'email_not_confirmed'
+        ? 'Email confirmation is disabled for this project. Please use the direct email/password login flow.'
+        : code === 'invalid_credentials' || /^invalid login credentials$/i.test(message)
+          ? 'The email or username and password do not match. Try again, or reset your password.'
+          : /fetch|network/i.test(message)
+            ? 'Could not reach Supabase. Check your internet connection and try again.'
+            : message || 'Something went wrong. Please try again.');
     } finally {
       setPending(false);
     }
@@ -132,12 +165,14 @@ export default function AuthPage({ mode = 'login' }) {
         {!auth.configured && <SetupNotice />}
         {error && <p className="notice error" id="auth-error" role="alert">{error}</p>}
         {success && <p className="notice success" role="status">{success}</p>}
+        {auth.user && auth.loading && ['login', 'register'].includes(mode) && <p className="notice" role="status">Opening your workspace…</p>}
         {mode === 'reset' && auth.loading && <p className="notice" role="status">Checking your password reset link…</p>}
         {resetUnavailable && <div className="notice error" role="alert"><p>{callbackError ? 'This reset link has expired or is invalid.' : 'Open the password reset link from your email to choose a new password.'}</p><Link to="/forgot-password">Request a new reset link →</Link></div>}
         {showForm && <form onSubmit={submit} aria-busy={pending} aria-describedby={error ? 'auth-error' : undefined}>
           <div className="auth-fields">
             {mode === 'register' && <label htmlFor="auth-name">Full name<input id="auth-name" name="name" autoComplete="name" placeholder="Your full name" required minLength={2} maxLength={100} disabled={pending || !auth.configured} /></label>}
-            {mode !== 'reset' && <label htmlFor="auth-email">Email address<input id="auth-email" name="email" type="email" autoComplete="email" placeholder="you@example.com" required maxLength={254} disabled={pending || !auth.configured} /></label>}
+            {mode === 'register' && <label htmlFor="auth-phone">Phone number (optional)<input id="auth-phone" name="phone" type="tel" autoComplete="tel" maxLength={25} disabled={pending || !auth.configured}/></label>}
+            {mode !== 'reset' && <label htmlFor="auth-email">{mode === 'login' ? 'Email or existing username' : 'Email address'}<input id="auth-email" name="email" type={mode === 'login' ? 'text' : 'email'} autoComplete={mode === 'login' ? 'username' : 'email'} placeholder={mode === 'login' ? 'Email address or existing username' : 'you@example.com'} required maxLength={254} disabled={pending || !auth.configured} /></label>}
             {hasPassword && <label htmlFor="auth-password">{mode === 'reset' ? 'New password' : 'Password'}<input id="auth-password" name="password" type={showPassword ? 'text' : 'password'} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} placeholder={mode === 'login' ? 'Your password' : 'At least 8 characters'} minLength={mode === 'login' ? undefined : 8} maxLength={128} required disabled={pending || !auth.configured} /></label>}
             {['register', 'reset'].includes(mode) && <label htmlFor="auth-confirm">Confirm password<input id="auth-confirm" name="confirmPassword" type={showPassword ? 'text' : 'password'} autoComplete="new-password" placeholder="Repeat your password" minLength={8} maxLength={128} required disabled={pending || !auth.configured} /></label>}
           </div>
@@ -145,8 +180,8 @@ export default function AuthPage({ mode = 'login' }) {
           <button className="btn auth-submit" type="submit" disabled={pending || !auth.configured}>{pending ? 'Please wait…' : copy.button}<span aria-hidden="true"> →</span></button>
         </form>}
         <div className="auth-footer">
-          {mode === 'login' && <p>New to CricDrona? <Link to={`/register?next=${encodeURIComponent(next)}`}>Create an account</Link></p>}
-          {mode === 'register' && <p>Already part of the squad? <Link to={`/login?next=${encodeURIComponent(next)}`}>Sign in</Link></p>}
+          {mode === 'login' && <p>New to CricDrona? <Link to={`/register${nextQuery}`}>Create an account</Link></p>}
+          {mode === 'register' && <p>Already part of the squad? <Link to={`/login${nextQuery}`}>Sign in</Link></p>}
           {mode === 'reset' && auth.recovery && !resetComplete ? <button className="text-button" type="button" disabled={pending} onClick={leaveRecovery}>Cancel and return to sign in</button> : ['forgot', 'reset'].includes(mode) && <Link to={resetComplete && auth.user ? '/dashboard' : '/login'}>{resetComplete && auth.user ? 'Go to dashboard →' : '← Back to sign in'}</Link>}
         </div>
       </section>
@@ -155,9 +190,9 @@ export default function AuthPage({ mode = 'login' }) {
 }
 
 export function AuthCallback() {
-  const { loading, user, configured, recovery } = useAuth();
+  const { loading, user, profile, configured, recovery } = useAuth();
   const [params] = useSearchParams();
-  const next = safeNext(params.get('next'));
+  const next = authLandingPath(params.get('next'), profile?.role);
   if (authRedirectInfo.error) return <section className="public-title"><h1>Let’s try that again.</h1><p role="alert">This account link is invalid or has expired. Sign in to your account or request a new password reset link.</p><Link className="btn" to="/login">Sign in</Link> <Link className="btn light" to="/forgot-password">Reset password</Link></section>;
   if (!configured) return <section className="public-title"><h1>Connect your account.</h1><SetupNotice /></section>;
   if (loading) return <section className="public-title" role="status"><h1>Checking your link…</h1><p>Finishing your secure account connection.</p></section>;

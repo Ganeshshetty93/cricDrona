@@ -1,0 +1,104 @@
+/* Authenticated workspaces. Public pages keep their existing presentation. */
+.workspace-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  height: 84px;
+  padding: 0 max(24px, 4.6vw);
+  gap: 54px;
+  background: #101e35f5;
+  backdrop-filter: blur(16px);
+}
+.workspace-header .brand { gap: 10px; font-size: 28px; letter-spacing: -1.3px; }
+.workspace-header .brand-accent { color: inherit; }
+.workspace-header .brand b { margin-left: 7px; }
+.workspace-header .clubhouse-mark { width: 36px; height: 42px; color: #ff783e; flex-shrink: 0; }
+.workspace-header nav { height: 100%; gap: 30px; }
+.workspace-header nav a { display: flex; align-items: center; height: 100%; position: relative; white-space: nowrap; font-size: 13px; }
+.workspace-header nav a.active { color: #ffa46f; font-weight: 700; }
+.workspace-header nav a.active::after { position: absolute; content: ''; height: 3px; background: #ff783e; top: auto; bottom: 0; left: 0; right: 0; width: auto; }
+.workspace-header .top-actions { margin-left: auto; flex-shrink: 0; }
+.workspace-header .avatar { width: 36px; height: 36px; }
+.workspace-header .btn.small { font-size: 12px; padding: 9px 12px; }
+.workspace-shell { min-height: calc(100dvh - 84px); }
+.workspace-shell > aside { position: sticky; top: 84px; align-self: flex-start; width: 218px; height: calc(100dvh - 84px); overflow-y: auto; padding: 32px 14px 20px; }
+.workspace-shell > aside .label { font-size: 9px; letter-spacing: 1.8px; margin: 7px 14px 18px; }
+.workspace-shell > aside nav { gap: 8px; }
+.workspace-shell > aside nav a { padding: 14px 15px; font-size: 13px; gap: 12px; }
+.workspace-shell > aside nav a svg { width: 15px; height: 15px; }
+.workspace-shell > aside nav a.active { color: #ffac74; font-weight: 700; }
+.workspace-shell > aside .help { padding: 16px; font-size: 12px; line-height: 1.8; }
+.workspace-shell > aside .help b { display: block; font-size: 13px; margin-bottom: 3px; }
+.workspace-shell > main { flex: 1; width: calc(100% - 218px); max-width: 1680px; padding: 32px clamp(24px, 5.2vw, 100px); margin: 0 auto; }
+.workspace-shell .pagehead h1 { font-size: 36px; line-height: 1.15; }
+.workspace-shell .pagehead .eyebrow { font-size: 10px; letter-spacing: 2px; }
+.workspace-shell .pagehead .sub { font-size: 12px; margin-top: 8px; }
+.workspace-shell > main > footer { margin-top: 48px; }
+.player-events .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 17px; align-items: stretch; }
+.compact-event-filters { display: flex; align-items: start; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; margin: 0 0 18px; }
+.compact-event-filters .tabs { margin: 0; gap: 7px; }
+.compact-event-filters .chip { padding: 9px 14px; font-size: 11px; border-radius: 5px; }
+.event-search-disclosure { font-size: 11px; color: #a2b4ce; }
+.event-search-disclosure summary { cursor: pointer; display: flex; align-items: center; gap: 6px; padding: 10px 0; }
+.event-search-disclosure[open] { flex-basis: 100%; }
+.event-search-disclosure .search-row { margin-top: 8px; }
+.filter-applied { color: #ffac74; }
+.clubhouse-event-card { border-radius: 10px; display: flex; flex-direction: column; min-width: 0; }
+.clubhouse-event-card .cover { height: 134px; flex-shrink: 0; }
+.clubhouse-event-card .cover .badge { top: 12px; left: 12px; font-size: 9px; padding: 5px 8px; }
+.clubhouse-event-card .cover .tag { bottom: 10px; right: 10px; font-size: 9px; padding: 5px 8px; }
+.clubhouse-event-card .cardbody { padding: 16px; display: flex; flex: 1; flex-direction: column; }
+.clubhouse-event-card .type { font-size: 9px; letter-spacing: 1px; }
+.clubhouse-event-card h3 { font-size: 16px; margin: 9px 0 14px; line-height: 1.35; }
+.clubhouse-event-card .details { font-size: 11px; line-height: 2; margin-bottom: 13px; }
+.clubhouse-event-card .cardfoot { margin-top: auto; padding-top: 12px; }
+.clubhouse-event-card .cardfoot .btn { padding: 9px 12px; font-size: 12px; }
+.player-workspace .event-detail .public-title h1 { font-size: 40px; }
+.workspace-header .menu-toggle { display: none; }
+@media (max-width: 1150px) {
+  .workspace-header { gap: 28px; padding: 0 24px; }
+  .workspace-header nav { gap: 20px; }
+  .workspace-header .brand { font-size: 24px; }
+  .workspace-shell > aside { width: 200px; padding-inline: 10px; }
+  .workspace-shell > aside nav a { font-size: 12px; padding-inline: 12px; }
+  .workspace-shell > main { width: calc(100% - 200px); padding: 30px 28px; }
+}
+@media (max-width: 900px) {
+  .workspace-header { gap: 20px; }
+  .workspace-header nav { gap: 16px; }
+  .workspace-header nav a { font-size: 11px; }
+  .workspace-header .top-actions { gap: 8px; }
+  .workspace-shell > aside { width: 180px; }
+  .workspace-shell > main { width: calc(100% - 180px); padding: 28px 22px; }
+}
+@media (max-width: 760px) {
+  .workspace-header { height: auto; min-height: 74px; padding: 14px 20px; gap: 10px; flex-wrap: wrap; }
+  .workspace-header .brand { margin-right: auto; font-size: 24px; }
+  .workspace-header .clubhouse-mark { width: 29px; height: 34px; }
+  .workspace-header .menu-toggle { display: inline-flex; }
+  .workspace-header .top-actions { margin: 0; gap: 6px; }
+  .workspace-header .top-actions .btn { font-size: 10px; padding: 8px; }
+  .workspace-header .top-actions .avatar { display: none; }
+  .workspace-header nav { display: none; order: 4; flex: 1 0 100%; height: auto; padding-top: 8px; justify-content: space-between; gap: 14px; }
+  .workspace-header nav.nav-open { display: flex; }
+  .workspace-header nav a { height: auto; padding: 10px 0; font-size: 12px; }
+  .workspace-shell { display: block; min-height: calc(100dvh - 74px); }
+  .workspace-shell > aside { position: static; width: 100%; height: auto; overflow-y: visible; padding: 10px 14px; border-right: 0; border-bottom: 1px solid #29364e; }
+  .workspace-shell > aside .label, .workspace-shell > aside .bottom { display: none; }
+  .workspace-shell > aside nav { flex-direction: row; gap: 5px; overflow-x: auto; }
+  .workspace-shell > aside nav a { font-size: 11px; padding: 11px 10px; gap: 7px; flex-shrink: 0; }
+  .workspace-shell > main { width: 100%; padding: 28px 20px; }
+  .workspace-shell .pagehead { flex-wrap: wrap; gap: 16px; }
+  .workspace-shell .pagehead h1 { font-size: 32px; }
+  .workspace-shell .pagehead > .btn { display: inline-flex; }
+  .player-events .cards { grid-template-columns: 1fr; }
+  .clubhouse-event-card .cover { height: 155px; }
+  .compact-event-filters { gap: 4px; }
+  .compact-event-filters .chip { padding: 9px 11px; }
+}
+@media (max-width: 400px) {
+  .workspace-header { padding-inline: 14px; }
+  .workspace-header .brand { font-size: 21px; gap: 7px; }
+  .workspace-header .top-actions .btn svg { display: none; }
+  .workspace-shell > main { padding-inline: 16px; }
+}
