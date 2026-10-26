@@ -74,6 +74,10 @@ Academy: `/admin`, `/admin/events`, `/admin/registrations`, `/admin/batches`, `/
 
 ## Checks and deployment
 
+Vercel sends every `/api/*` URL to `api/index.js` through an explicit wildcard rewrite. Keep this rewrite before the frontend fallback: Next.js-style `api/[...path].js` filenames do not provide nested catch-all routing for this Vite project. Without the rewrite, health and event-list requests can work while event details and admin requests return a Vercel 404.
+
+After deploying, run `npm run test:deployment -- https://www.wa-sca.org`. This read-only check follows an event from the published catalog to its detail API/page and confirms that protected nested routes reach the API's authentication guard. It uses no login credentials and makes no database changes. Deploy the routing fix itself; redeploying an older commit will retain the broken routes.
+
 `npm test` checks API validation/authorization and local startup. `npm run test:e2e` checks public pages; `npm run test:auth` checks auth with intercepted test responses; `npm run test:design` checks the isolated role-preview workflows. Use `-- --workers=1` on browser suites when memory is limited. Preview tests are not evidence of live database writes.
 
 `npm run build` creates `dist`. Vercel uses the supplied configuration and `api` entry point; configure both server and Vite environment variables before deployment. Event fees are payable to the academy; this app does not collect online payments. Contact forms save to the admin inbox rather than sending email.
